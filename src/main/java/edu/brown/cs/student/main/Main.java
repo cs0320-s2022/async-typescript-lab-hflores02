@@ -6,14 +6,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import freemarker.template.Configuration;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import org.json.JSONException;
+import org.json.JSONObject;
 import spark.*;
 import spark.template.freemarker.FreeMarkerEngine;
 
@@ -58,6 +63,7 @@ public final class Main {
     Spark.exception(Exception.class, new ExceptionPrinter());
 
     // Setup Spark Routes
+    Spark.post("/results", new ResultsHandler());
 
     // TODO: create a call to Spark.post to make a POST request to a URL which
     // will handle getting matchmaking results for the input
@@ -73,6 +79,7 @@ public final class Main {
       if (accessControlRequestMethod != null) {
         response.header("Access-Control-Allow-Methods", accessControlRequestMethod);
       }
+      //Spark.post("https://localhost:8080/results", new ResultsHandler());
 
       return "OK";
     });
@@ -80,6 +87,11 @@ public final class Main {
     // Allows requests from any domain (i.e., any URL). This makes development
     // easier, but it’s not a good idea for deployment.
     Spark.before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
+
+    // For each route handler, run and replace with the correct names
+    // Spark.post("/http://127.0.0.1:8080/", new ResultsHandler());
+
+
   }
 
   /**
@@ -101,23 +113,37 @@ public final class Main {
 
   /**
    * Handles requests for horoscope matching on an input
-   * 
+   *
    * @return GSON which contains the result of MatchMaker.makeMatches
    */
   private static class ResultsHandler implements Route {
     @Override
-    public String handle(Request req, Response res) {
-      // TODO: Get JSONObject from req and use it to get the value of the sun, moon,
-      // and rising
-      // for generating matches
+    public String handle(Request req, Response res) throws JSONException {
+      // TODO: Get JSONObject from req and use it to get the value of the sun, moon, and rising, for generating matches
+      JSONObject reqJson; //initializing a JSONObject
+      try {
+        // Put the request's body (string) in JSON format
+        reqJson = new JSONObject(req.body());
+      } catch (JSONException e) {
+        reqJson = null;
+        e.printStackTrace();
+      }
+
+      String sun = reqJson.getString("sun");
+      String moon = reqJson.getString("moon");
+      String rising = reqJson.getString("rising");
 
       // TODO: use the MatchMaker.makeMatches method to get matches
+      MatchMaker matchMaker = new MatchMaker();
+      List<String> matches = matchMaker.makeMatches(sun, moon, rising);
 
       // TODO: create an immutable map using the matches
+      Map mapMatches = ImmutableMap.of("matches", matches);
 
       // TODO: return a json of the suggestions (HINT: use GSON.toJson())
       Gson GSON = new Gson();
-      return null;
+      String matchesFinal = GSON.toJson(mapMatches);
+      return matchesFinal;
     }
   }
 }
